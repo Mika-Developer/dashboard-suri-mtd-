@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard MTD Suri - Funil de Vendas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: #f8f9fa;
+            color: #2c3e50;
+        }
+
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #5B68F5 0%, #4a56d8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .login-box h2 {
+            color: #5B68F5;
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Sora', sans-serif;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .login-box input:focus {
+            outline: none;
+            border-color: #5B68F5;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 15px;
+            background: #5B68F5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Sora', sans-serif;
+        }
+
+        .login-box button:hover {
+            background: #4a56d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(91, 104, 245, 0.4);
+        }
+
+        .error-message {
+            color: #FF6B6B;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            color: #5B68F5;
+        }
+
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .month-selector label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .month-selector select {
+            padding: 10px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .month-selector select:focus {
+            outline: none;
+            border-color: #5B68F5;
+        }
+
+        /* Main Container */
+        .container {
+            display: grid;
+            grid-template-columns: 35% 65%;
+            gap: 30px;
+            padding: 30px 40px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Funnel Column */
+        .funnel-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .funnel-stage {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+        }
+
+        .funnel-stage:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+
+        .funnel-stage.active {
+            border-color: #5B68F5;
+            box-shadow: 0 8px 25px rgba(91, 104, 245, 0.3);
+        }
+
+        .funnel-stage.highlight {
+            background: white;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stage-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #5B68F5, #4a56d8);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .stage-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .stage-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .stage-progress {
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5FC88F, #4ab77a);
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.below-target {
+            background: linear-gradient(90deg, #FF6B6B, #e85555);
+        }
+
+        .progress-text {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .progress-text.positive {
+            color: #5FC88F;
+        }
+
+        .progress-text.negative {
+            color: #FF6B6B;
+        }
+
+        .conversion-rate {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        /* Charts Column */
+        .charts-column {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+        }
+
+        .chart-container.highlighted {
+            border: 3px solid #5B68F5;
+            box-shadow: 0 8px 25px rgba(91, 104, 245, 0.3);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .chart-progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .progress-badge.positive {
+            background: #d4f4dd;
+            color: #27ae60;
+        }
+
+        .progress-badge.negative {
+            background: #ffe5e5;
+            color: #e74c3c;
+        }
+
+        .chart-wrapper {
+            height: 300px;
+            position: relative;
+        }
+
+        .no-data-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #95a5a6;
+            font-size: 16px;
+            font-style: italic;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #5B68F5;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>🔒 Dashboard MTD Suri</h2>
+            <input type="password" id="passwordInput" placeholder="Digite a senha" autocomplete="off">
+            <button onclick="checkPassword()">Entrar</button>
+            <div class="error-message" id="errorMessage">❌ Senha incorreta! Tente novamente.</div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="mainDashboard" class="hidden">
+        <header>
+            <div class="logo">📊 Suri Dashboard MTD</div>
+            <div class="month-selector">
+                <label for="monthSelect">Mês:</label>
+                <select id="monthSelect" onchange="updateDashboard()">
+                    <option value="0">Jan</option>
+                    <option value="1">Fev</option>
+                    <option value="2">Mar</option>
+                    <option value="3">Abr</option>
+                    <option value="4">Mai</option>
+                    <option value="5">Jun</option>
+                    <option value="6">Jul</option>
+                    <option value="7">Ago</option>
+                    <option value="8">Set</option>
+                    <option value="9">Out</option>
+                    <option value="10">Nov</option>
+                    <option value="11">Dez</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Carregando dados da planilha...</p>
+        </div>
+
+        <div class="container">
+            <!-- Funnel Column -->
+            <div class="funnel-column">
+                <div class="funnel-stage" id="stage-leads" onclick="highlightChart('leads')">
+                    <div class="stage-header">
+                        <div class="stage-icon"><i class="fas fa-users"></i></div>
+                        <div class="stage-title">LEADS</div>
+                    </div>
+                    <div class="stage-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Meta MTD</div>
+                            <div class="metric-value" id="leads-meta">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Realizado MTD</div>
+                            <div class="metric-value" id="leads-realizado">-</div>
+                        </div>
+                    </div>
+                    <div class="stage-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="leads-progress"></div>
+                        </div>
+                        <div class="progress-text" id="leads-progress-text">-</div>
+                    </div>
+                </div>
+
+                <div class="funnel-stage" id="stage-agendados" onclick="highlightChart('agendados')">
+                    <div class="stage-header">
+                        <div class="stage-icon"><i class="fas fa-calendar-check"></i></div>
+                        <div class="stage-title">AGENDADOS</div>
+                    </div>
+                    <div class="stage-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Meta MTD</div>
+                            <div class="metric-value" id="agendados-meta">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Realizado MTD</div>
+                            <div class="metric-value" id="agendados-realizado">-</div>
+                        </div>
+                    </div>
+                    <div class="stage-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="agendados-progress"></div>
+                        </div>
+                        <div class="progress-text" id="agendados-progress-text">-</div>
+                    </div>
+                    <div class="conversion-rate" id="agendados-conversion">Conversão LEADS → AGENDADOS: -</div>
+                </div>
+
+                <div class="funnel-stage highlight" id="stage-shows" onclick="highlightChart('shows')">
+                    <div class="stage-header">
+                        <div class="stage-icon"><i class="fas fa-video"></i></div>
+                        <div class="stage-title">REUNIÕES (SHOWS)</div>
+                    </div>
+                    <div class="stage-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Meta MTD</div>
+                            <div class="metric-value" id="shows-meta">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Realizado MTD</div>
+                            <div class="metric-value" id="shows-realizado">-</div>
+                        </div>
+                    </div>
+                    <div class="stage-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="shows-progress"></div>
+                        </div>
+                        <div class="progress-text" id="shows-progress-text">-</div>
+                    </div>
+                    <div class="conversion-rate" id="shows-conversion">Conversão AGENDADOS → SHOWS: -</div>
+                </div>
+
+                <div class="funnel-stage highlight" id="stage-vendas" onclick="highlightChart('vendas')">
+                    <div class="stage-header">
+                        <div class="stage-icon"><i class="fas fa-file-contract"></i></div>
+                        <div class="stage-title">VENDAS</div>
+                    </div>
+                    <div class="stage-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Meta MTD</div>
+                            <div class="metric-value" id="vendas-meta">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Realizado MTD</div>
+                            <div class="metric-value" id="vendas-realizado">-</div>
+                        </div>
+                    </div>
+                    <div class="stage-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="vendas-progress"></div>
+                        </div>
+                        <div class="progress-text" id="vendas-progress-text">-</div>
+                    </div>
+                    <div class="conversion-rate" id="vendas-conversion">Conversão SHOWS → VENDAS: -</div>
+                </div>
+
+                <div class="funnel-stage highlight" id="stage-receita" onclick="highlightChart('receita')">
+                    <div class="stage-header">
+                        <div class="stage-icon"><i class="fas fa-dollar-sign"></i></div>
+                        <div class="stage-title">RECEITA</div>
+                    </div>
+                    <div class="stage-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Meta MTD</div>
+                            <div class="metric-value" id="receita-meta">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Realizado MTD</div>
+                            <div class="metric-value" id="receita-realizado">-</div>
+                        </div>
+                    </div>
+                    <div class="stage-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="receita-progress"></div>
+                        </div>
+                        <div class="progress-text" id="receita-progress-text">-</div>
+                    </div>
+                    <div class="conversion-rate" id="receita-conversion">Ticket Médio: -</div>
+                </div>
+            </div>
+
+            <!-- Charts Column -->
+            <div class="charts-column">
+                <div class="chart-container" id="chart-leads">
+                    <div class="chart-header">
+                        <div class="chart-title">📊 LEADS - Evolução MTD</div>
+                        <div class="chart-progress-indicator">
+                            <div class="progress-badge" id="badge-leads">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="canvas-leads"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="chart-agendados">
+                    <div class="chart-header">
+                        <div class="chart-title">📅 AGENDADOS - Evolução MTD</div>
+                        <div class="chart-progress-indicator">
+                            <div class="progress-badge" id="badge-agendados">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="canvas-agendados"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="chart-shows">
+                    <div class="chart-header">
+                        <div class="chart-title">🎥 REUNIÕES (SHOWS) - Evolução MTD</div>
+                        <div class="chart-progress-indicator">
+                            <div class="progress-badge" id="badge-shows">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="canvas-shows"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="chart-vendas">
+                    <div class="chart-header">
+                        <div class="chart-title">📝 VENDAS - Evolução MTD</div>
+                        <div class="chart-progress-indicator">
+                            <div class="progress-badge" id="badge-vendas">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="canvas-vendas"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="chart-receita">
+                    <div class="chart-header">
+                        <div class="chart-title">💰 RECEITA - Evolução MTD</div>
+                        <div class="chart-progress-indicator">
+                            <div class="progress-badge" id="badge-receita">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="canvas-receita"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let rawData = [];
+        let charts = {};
+        const CORRECT_PASSWORD = 'borasuri2025';
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1rWxwh8zHYgX6c47l-5ozaMdmPN6NeQ1n7JFnMko718s/export?format=csv&gid=0';
+        let lastFetchTime = 0;
+
+        // Password check
+        function checkPassword() {
+            const input = document.getElementById('passwordInput');
+            const error = document.getElementById('errorMessage');
+            
+            if (input.value === CORRECT_PASSWORD) {
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('mainDashboard').classList.remove('hidden');
+                initDashboard();
+            } else {
+                error.style.display = 'block';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // Allow Enter key to submit password
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('passwordInput');
+            if (input) {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        checkPassword();
+                    }
+                });
+                input.focus();
+            }
+        });
+
+        // Initialize dashboard
+        function initDashboard() {
+            // Set current month
+            const currentMonth = new Date().getMonth();
+            document.getElementById('monthSelect').value = currentMonth;
+            
+            // Load data
+            loadData();
+            
+            // Set up auto-refresh every 60 seconds
+            setInterval(() => {
+                loadData(true);
+            }, 60000);
+        }
+
+        // Load data from Google Sheets
+        async function loadData(silent = false) {
+            if (!silent) {
+                document.getElementById('loadingIndicator').style.display = 'block';
+            }
+
+            try {
+                const response = await fetch(SHEET_URL + '&t=' + Date.now());
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    complete: function(results) {
+                        rawData = results.data;
+                        lastFetchTime = Date.now();
+                        localStorage.setItem('dashboardData', JSON.stringify(rawData));
+                        localStorage.setItem('lastFetch', lastFetchTime);
+                        updateDashboard();
+                        if (!silent) {
+                            document.getElementById('loadingIndicator').style.display = 'none';
+                        }
+                    },
+                    error: function(error) {
+                        console.error('Error parsing CSV:', error);
+                        if (!silent) {
+                            document.getElementById('loadingIndicator').style.display = 'none';
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                if (!silent) {
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                }
+            }
+        }
+
+        // Update dashboard with filtered data
+        function updateDashboard() {
+            const selectedMonth = parseInt(document.getElementById('monthSelect').value);
+            const filteredData = filterDataByMonth(rawData, selectedMonth);
+            
+            updateFunnelCards(filteredData);
+            updateCharts(filteredData);
+        }
+
+        // Filter data by selected month
+        function filterDataByMonth(data, month) {
+            const filtered = {
+                leads: { esperado: [], realizado: [], dates: [] },
+                agendados: { esperado: [], realizado: [], dates: [] },
+                shows: { esperado: [], realizado: [], dates: [] },
+                vendas: { esperado: [], realizado: [], dates: [] },
+                receita: { esperado: [], realizado: [], dates: [] }
+            };
+
+            // Skip header rows (first 2 rows)
+            for (let i = 2; i < data.length; i++) {
+                const row = data[i];
+                if (!row[0]) continue; // Skip empty rows
+
+                // Parse date (format: DD/MM/YYYY)
+                const dateParts = row[0].split('/');
+                if (dateParts.length !== 3) continue;
+                
+                const day = parseInt(dateParts[0]);
+                const rowMonth = parseInt(dateParts[1]) - 1; // JS months are 0-indexed
+                const year = parseInt(dateParts[2]);
+
+                if (rowMonth !== month) continue;
+
+                // LEADS (columns B-D)
+                if (row[1] && row[3]) {
+                    filtered.leads.dates.push(day);
+                    filtered.leads.esperado.push(parseFloat(row[1]) || 0);
+                    filtered.leads.realizado.push(parseFloat(row[3]) || 0);
+                }
+
+                // AGENDADOS (columns F-G)
+                if (row[5] && row[6]) {
+                    filtered.agendados.dates.push(day);
+                    filtered.agendados.esperado.push(parseFloat(row[5]) || 0);
+                    filtered.agendados.realizado.push(parseFloat(row[6]) || 0);
+                }
+
+                // SHOWS (columns I-J)
+                if (row[8] && row[9]) {
+                    filtered.shows.dates.push(day);
+                    filtered.shows.esperado.push(parseFloat(row[8]) || 0);
+                    filtered.shows.realizado.push(parseFloat(row[9]) || 0);
+                }
+
+                // VENDAS (columns L-M)
+                if (row[11] && row[12]) {
+                    filtered.vendas.dates.push(day);
+                    filtered.vendas.esperado.push(parseFloat(row[11]) || 0);
+                    filtered.vendas.realizado.push(parseFloat(row[12]) || 0);
+                }
+
+                // RECEITA (columns O-P)
+                if (row[14] && row[15]) {
+                    filtered.receita.dates.push(day);
+                    filtered.receita.esperado.push(parseFloat(row[14]) || 0);
+                    filtered.receita.realizado.push(parseFloat(row[15]) || 0);
+                }
+            }
+
+            return filtered;
+        }
+
+        // Update funnel cards
+        function updateFunnelCards(data) {
+            updateStageCard('leads', data.leads);
+            updateStageCard('agendados', data.agendados, data.leads);
+            updateStageCard('shows', data.shows, data.agendados);
+            updateStageCard('vendas', data.vendas, data.shows);
+            updateStageCard('receita', data.receita, data.vendas);
+        }
+
+        // Update individual stage card
+        function updateStageCard(stage, stageData, previousStageData = null) {
+            const metaMTD = stageData.esperado.length > 0 ? stageData.esperado[stageData.esperado.length - 1] : 0;
+            const realizadoMTD = stageData.realizado.length > 0 ? stageData.realizado[stageData.realizado.length - 1] : 0;
+            const percentage = metaMTD > 0 ? ((realizadoMTD / metaMTD) * 100) : 0;
+
+            // Update meta and realizado values
+            document.getElementById(`${stage}-meta`).textContent = stage === 'receita' ? formatCurrency(metaMTD) : formatNumber(metaMTD);
+            document.getElementById(`${stage}-realizado`).textContent = stage === 'receita' ? formatCurrency(realizadoMTD) : formatNumber(realizadoMTD);
+
+            // Update progress bar
+            const progressFill = document.getElementById(`${stage}-progress`);
+            const progressText = document.getElementById(`${stage}-progress-text`);
+            
+            progressFill.style.width = Math.min(percentage, 100) + '%';
+            
+            if (percentage >= 100) {
+                progressFill.classList.remove('below-target');
+                progressText.classList.remove('negative');
+                progressText.classList.add('positive');
+                const diff = realizadoMTD - metaMTD;
+                const diffFormatted = stage === 'receita' ? formatCurrency(diff) : formatNumber(diff);
+                progressText.textContent = `✓ ${percentage.toFixed(1)}% - ${diffFormatted} acima da meta`;
+            } else {
+                progressFill.classList.add('below-target');
+                progressText.classList.remove('positive');
+                progressText.classList.add('negative');
+                const diff = metaMTD - realizadoMTD;
+                const diffFormatted = stage === 'receita' ? formatCurrency(diff) : formatNumber(diff);
+                progressText.textContent = `${percentage.toFixed(1)}% - Faltam ${diffFormatted}`;
+            }
+
+            // Update conversion rate
+            if (previousStageData && document.getElementById(`${stage}-conversion`)) {
+                const previousRealizadoMTD = previousStageData.realizado.length > 0 ? 
+                    previousStageData.realizado[previousStageData.realizado.length - 1] : 0;
+                
+                if (stage === 'receita') {
+                    // Calculate average ticket
+                    const vendasRealizadoMTD = previousStageData.realizado.length > 0 ? 
+                        previousStageData.realizado[previousStageData.realizado.length - 1] : 0;
+                    const ticketMedio = vendasRealizadoMTD > 0 ? realizadoMTD / vendasRealizadoMTD : 0;
+                    document.getElementById(`${stage}-conversion`).textContent = `Ticket Médio: ${formatCurrency(ticketMedio)}`;
+                } else {
+                    const conversionRate = previousRealizadoMTD > 0 ? ((realizadoMTD / previousRealizadoMTD) * 100) : 0;
+                    const prevStageName = stage === 'agendados' ? 'LEADS' : 
+                                         stage === 'shows' ? 'AGENDADOS' : 
+                                         stage === 'vendas' ? 'SHOWS' : '';
+                    const currentStageName = stage === 'agendados' ? 'AGENDADOS' : 
+                                            stage === 'shows' ? 'SHOWS' : 
+                                            stage === 'vendas' ? 'VENDAS' : '';
+                    document.getElementById(`${stage}-conversion`).textContent = 
+                        `Conversão ${prevStageName} → ${currentStageName}: ${conversionRate.toFixed(1)}%`;
+                }
+            }
+
+            // Update badge
+            const badge = document.getElementById(`badge-${stage}`);
+            if (badge) {
+                if (percentage >= 100) {
+                    badge.className = 'progress-badge positive';
+                    badge.textContent = `+${(percentage - 100).toFixed(1)}%`;
+                } else {
+                    badge.className = 'progress-badge negative';
+                    badge.textContent = `${(percentage - 100).toFixed(1)}%`;
+                }
+            }
+        }
+
+        // Update charts
+        function updateCharts(data) {
+            createOrUpdateChart('leads', data.leads);
+            createOrUpdateChart('agendados', data.agendados);
+            createOrUpdateChart('shows', data.shows);
+            createOrUpdateChart('vendas', data.vendas);
+            createOrUpdateChart('receita', data.receita);
+        }
+
+        // Create or update individual chart
+        function createOrUpdateChart(stage, stageData) {
+            const ctx = document.getElementById(`canvas-${stage}`);
+            if (!ctx) return;
+
+            const metaMTD = stageData.esperado.length > 0 ? stageData.esperado[stageData.esperado.length - 1] : 0;
+            const realizadoMTD = stageData.realizado.length > 0 ? stageData.realizado[stageData.realizado.length - 1] : 0;
+            const lineColor = realizadoMTD >= metaMTD ? '#5B68F5' : '#FF6B6B';
+
+            if (charts[stage]) {
+                charts[stage].destroy();
+            }
+
+            if (stageData.dates.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data-message">Aguardando dados...</div>';
+                return;
+            }
+
+            charts[stage] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stageData.dates,
+                    datasets: [
+                        {
+                            label: 'Meta Acumulada',
+                            data: stageData.esperado,
+                            borderColor: '#5FC88F',
+                            backgroundColor: 'rgba(95, 200, 143, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Realizado Acumulado',
+                            data: stageData.realizado,
+                            borderColor: lineColor,
+                            backgroundColor: lineColor === '#5B68F5' ? 'rgba(91, 104, 245, 0.1)' : 'rgba(255, 107, 107, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: 'Sora',
+                                    size: 12
+                                },
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: {
+                                family: 'Sora',
+                                size: 14
+                            },
+                            bodyFont: {
+                                family: 'Sora',
+                                size: 12
+                            },
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += stage === 'receita' ? formatCurrency(context.parsed.y) : formatNumber(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Dia do Mês',
+                                font: {
+                                    family: 'Sora',
+                                    size: 12,
+                                    weight: 600
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: stage === 'receita' ? 'Valor (R$)' : 'Quantidade',
+                                font: {
+                                    family: 'Sora',
+                                    size: 12,
+                                    weight: 600
+                                }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return stage === 'receita' ? 'R$ ' + formatNumberShort(value) : formatNumberShort(value);
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Highlight chart when stage is clicked
+        function highlightChart(stage) {
+            // Remove all highlights
+            document.querySelectorAll('.funnel-stage').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('highlighted'));
+
+            // Add highlights
+            document.getElementById(`stage-${stage}`).classList.add('active');
+            document.getElementById(`chart-${stage}`).classList.add('highlighted');
+
+            // Scroll to chart
+            document.getElementById(`chart-${stage}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Format number
+        function formatNumber(num) {
+            if (!num) return '0';
+            return Math.round(num).toLocaleString('pt-BR');
+        }
+
+        // Format number short
+        function formatNumberShort(num) {
+            if (!num) return '0';
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            }
+            if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return Math.round(num).toString();
+        }
+
+        // Format currency
+        function formatCurrency(num) {
+            if (!num) return 'R$ 0,00';
+            return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9a438a502fb9e2c4","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+</body>
+</html>
+    <script id="html_badge_script1">
+        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
+            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDrpAqhqm7kUiEQDzXkL2DilFYGqvB9vaGnqO08CxSCBYiv07jfmWvBwpTPcO%2BzVO9Fs1pjNiIZe%2BbCLlt21lc6AlnEU3iapztCVGan%2Fb%2F6b27UfM93VGflpWqYv3hbDpatbz2ls0%2B5V5YGNKrPX0vBDU7W9DwWLHGozIU4Sz0mKcc6enpO49KPV%2Bcc1cbXb4kIFncbhdNsGtE4FEAe4l2X0oKMBuGQ9eVDnjAQARtWNLkKSXNsiVgx5melItFHaRAmZI%2FNbxOb1awdFmNV40MFl9lxufRxTKePszVz9nXTPD9f%2Boz1In2OuL8ZRVHJsiXNJC2Jwvd0CqxDkDspiNqLr58OiqenRAXNEk0xJx9qqqtKKTJhs%2BZrghBCHk6Hif6K4jG0DGsCecF8NyxQOT62RSGcEQioUlEXyKfSK0PwF5B9Tzh8zAGBC%2Be4jmJqirbDnQuc5SaEI2%2F%2FGSaq0b6YlxYGg%2FP7gFNdfVxUBwcP4XR70K6uHm2ANdfMQepyA48aw%2F%2B%2B391ikF8t1VlX5fYjNFj9OF8oy1QsZF%2FC5I7RyLz7YQMkgC4k8rhnO0K%2FMQZqQ%2F7cQEkqP6QcRnf8BYkCc%3D";
+        window.__genspark_locale = "pt-BR";
+        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDrpAqhqm7kUiEQDzXkL2DilFYGqvB9vaGnqO08CxSCBYiv07jfmWvBwpTPcO+zVO9Fs1pjNiIZe+bCLlt21lc6AlnEU3iapztCVGan/b/6b27UfM93VGflpWqYv3hbDpatbz2ls0+5V5YGNKrPX0vBDU7W9DwWLHGozIU4Sz0mKcc6enpO49KPV+cc1cbXb4kIFncbhdNsGtE4FEAe4l2X0oKMBuGQ9eVDnjAQARtWNLkKSXNsiVgx5melItFHaRAmZI/NbxOb1awdFmNV40MFl9lxufRxTKePszVz9nXTPD9f+oz1In2OuL8ZRVHJsiXNJC2Jwvd0CqxDkDspiNqLr58OiqenRAXNEk0xJx9qqqtKKTJhs+ZrghBCHk6Hif6K4jG0DGsCecF8NyxQOT62RSGcEQioUlEXyKfSK0PwF5B9Tzh8zAGBC+e4jmJqirbDnQuc5SaEI2//GSaq0b6YlxYGg/P7gFNdfVxUBwcP4XR70K6uHm2ANdfMQepyA48aw/++391ikF8t1VlX5fYjNFj9OF8oy1QsZF/C5I7RyLz7YQMkgC4k8rhnO0K/MQZqQ/7cQEkqP6QcRnf8BYkCc=";
+    </script>
+    
+    <script id="html_notice_dialog_script" src="https://www.genspark.ai/notice_dialog.js"></script>
+    
